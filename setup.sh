@@ -1,3 +1,4 @@
 #!/bin/bash
-playwright install chromium
-playwright install-deps chromium
+
+echo "▶️ Installation des navigateurs Playwright"
+npx playwright install --with-deps
