@@ -1,165 +1,72 @@
-import streamlit as st
-import subprocess
-import threading
+from playwright.sync_api import sync_playwright
+import json
 import time
 import os
-from scrape_linkedin import get_linkedin_posts
-from analyze_posts import analyze_post, enrich_keywords
-from send_email import send_email
-from jinja2 import Template
 
-# 🎨 Logo LinkedIn en haut de l'interface
-st.set_page_config(page_title="Assistant LinkedIn IA", page_icon="🔗", layout="centered")
-st.markdown("""
-    <div style='text-align: center;'>
-        <img src='https://cdn-icons-png.flaticon.com/512/174/174857.png' width='60'/>
-        <h1 style='color:#0077B5;'>Assistant LinkedIn IA</h1>
-    </div>
-""", unsafe_allow_html=True)
+def load_cookies(context, cookies_file="linkedin_cookies.json"):
+    if not os.path.exists(cookies_file):
+        raise FileNotFoundError("⚠️ Fichier de cookies non trouvé.")
+    with open(cookies_file, "r") as f:
+        cookies = json.load(f)
+    context.add_cookies(cookies)
 
-# 📂 Lire les préférences utilisateur depuis le fichier créé par l'interface Streamlit
-def read_user_config():
-    try:
-        with open("user_config.txt", "r", encoding="utf-8") as f:
-            lines = [line.strip() for line in f.readlines()]
-            email = lines[0].split(":")[1].strip()
-            raw_keywords = lines[1].split(":")[1].strip()
-            categories = [cat.strip() for cat in lines[2].split(":")[1].split(",")]
-            enrich_mode = lines[3].split(":")[1].strip().lower() == "true"
-            return email, raw_keywords, categories, enrich_mode
-    except FileNotFoundError:
-        return "", "", [], False
-
-# 📁 Enregistrer les nouvelles préférences utilisateur
-def save_user_config(email, keywords, categories, enrich_mode):
-    with open("user_config.txt", "w", encoding="utf-8") as f:
-        f.write(f"Email: {email}\n")
-        f.write(f"Mots-clés: {keywords}\n")
-        f.write(f"Catégories: {', '.join(categories)}\n")
-        f.write(f"Enrichissement: {str(enrich_mode)}\n")
-
-# 🎛️ Barre latérale de configuration utilisateur
-st.sidebar.title("⚙️ Paramètres utilisateur")
-
-email_default, keywords_default, categories_default, enrich_default = read_user_config()
-
-email_input = st.sidebar.text_input("Adresse email", value=email_default)
-keywords_input = st.sidebar.text_input("Mots-clés (séparés par des virgules)", value=keywords_default)
-use_enrichment = st.sidebar.checkbox("🤖 Utiliser l'enrichissement intelligent des mots-clés", value=enrich_default)
-category_options = ["Offre d'emploi", "Mission freelance", "Événement", "Article pertinent", "Autre (inutile)"]
-
-# Filtrer les valeurs par défaut pour ne garder que celles qui existent dans les options
-valid_defaults = [cat for cat in categories_default if cat in category_options]
-selected = st.sidebar.multiselect("Catégories à recevoir", options=category_options, default=valid_defaults)
-
-if st.sidebar.button("📏 Sauvegarder mes paramètres"):
-    save_user_config(email_input, keywords_input, selected, use_enrichment)
-    st.sidebar.success("✅ Paramètres sauvegardés avec succès !")
-
-# 📋 Récap des paramètres enregistrés
-email, raw_keywords, selected_categories, enrich_mode = read_user_config()
-if email:
-    st.markdown(f"""
-    ### 📬 Paramètres utilisateur :
-    <ul style='line-height: 2;'>
-        <li><b style='color:#0077B5;'>Email :</b> {email}</li>
-        <li><b style='color:#0077B5;'>Mots-clés :</b> {raw_keywords}</li>
-        <li><b style='color:#0077B5;'>Catégories :</b>
-            {' '.join([f"<span style='background:#E8F4FD;padding:4px 8px;border-radius:5px;margin-right:5px;color:#0077B5;'>{cat}</span>" for cat in selected_categories])}
-        </li>
-    </ul>
-    """, unsafe_allow_html=True)
-
-# 🤖 Appliquer enrichissement si activé
-keywords_used = raw_keywords
-if enrich_mode and raw_keywords:
-    enriched = enrich_keywords(raw_keywords)
-    keywords_used = ", ".join(enriched)
-    with open("filtered_keywords.txt", "w", encoding="utf-8") as f:
-        f.write("\n".join(enriched))
-else:
-    with open("filtered_keywords.txt", "w", encoding="utf-8") as f:
-        f.write("\n".join([kw.strip() for kw in raw_keywords.split(",") if kw.strip()]))
-
-# 🔍 Lire les mots-clés pour le filtrage depuis le fichier généré
-def load_filtered_keywords():
-    try:
-        with open("filtered_keywords.txt", "r", encoding="utf-8") as f:
-            return [kw.strip().lower() for kw in f.readlines() if kw.strip()]
-    except FileNotFoundError:
+def read_keywords(file_path="user_keywords.txt"):
+    if not os.path.exists(file_path):
         return []
+    with open(file_path, "r") as f:
+        return [kw.strip().lower() for kw in f.readlines() if kw.strip()]
 
-# 🔘 Lancement manuel
-st.markdown("---")
-st.subheader("📤 Lancer l'analyse maintenant")
-progress_bar = st.empty()
+def save_posts(posts, filename="scraped_posts.txt"):
+    with open(filename, "w", encoding="utf-8") as f:
+        for post in posts:
+            f.write(post + "\n\n")
 
-if st.button("🚀 Exécuter maintenant", type="primary"):
-    with st.spinner("Analyse des posts et envoi du mail en cours..."):
+def scrape_linkedin_posts():
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context()
+        page = context.new_page()
+
         try:
-            progress = st.progress(0)
-            keywords_filter = load_filtered_keywords()
-            posts = get_linkedin_posts()
-            progress.progress(20)
-            filtered_posts = [p for p in posts if any(kw in p["text"].lower() for kw in keywords_filter)]
-            progress.progress(40)
+            # Charger les cookies LinkedIn
+            load_cookies(context)
 
-            categorized = {
-                "Offre d'emploi": [],
-                "Mission freelance": [],
-                "Événement": [],
-                "Article pertinent": [],
-                "Autre (inutile)": []
-            }
+            # Aller sur la page d'accueil LinkedIn
+            page.goto("https://www.linkedin.com/feed/", timeout=60000)
+            time.sleep(5)
 
-            for idx, post in enumerate(filtered_posts):
-                result = analyze_post(post)
+            # Faire défiler la page pour charger du contenu
+            for _ in range(3):
+                page.mouse.wheel(0, 1000)
+                time.sleep(2)
 
-                category = ""
-                summary = ""
+            # Extraire tous les posts visibles
+            posts_elements = page.locator("div.feed-shared-update-v2")
+            count = posts_elements.count()
+            print(f"{count} posts détectés.")
 
-                lines = result.split("\n")
-                for line in lines:
-                    if "Catégorie" in line:
-                        category = line.split(":", 1)[-1].strip()
-                    elif "Résumé" in line:
-                        summary = line.split(":", 1)[-1].strip()
+            keywords = read_keywords()
+            matched_posts = []
 
-                clean_summary = summary.strip()
-                if clean_summary.startswith(":"):
-                    clean_summary = clean_summary[1:].strip()
-                while "  " in clean_summary:
-                    clean_summary = clean_summary.replace("  ", " ")
+            for i in range(count):
+                post = posts_elements.nth(i)
+                content = post.inner_text()
 
-                author = post["author"].strip()
-                parts = author.split()
-                half = len(parts) // 2
-                if len(parts) % 2 == 0 and parts[:half] == parts[half:]:
-                    author = " ".join(parts[:half])
+                if any(keyword in content.lower() for keyword in keywords):
+                    try:
+                        post_url = post.locator("a").first.get_attribute("href")
+                        summary = content[:300]  # Simple résumé
+                        matched_posts.append(f"{summary}\n➡️ {post_url}")
+                    except:
+                        continue
 
-                html_line = f"<li><strong>{author}</strong> : {clean_summary} → <a href='{post['link']}'>Voir le post</a></li>"
+            save_posts(matched_posts)
 
-                if category in categorized:
-                    categorized[category].append(html_line)
-                else:
-                    categorized["Autre (inutile)"].append(html_line)
-
-                progress.progress(40 + int(50 * (idx + 1) / len(filtered_posts)))
-
-            html_template = Template("""
-            <h2>Résumé LinkedIn du jour</h2>
-            {% for category, items in data.items() if items %}
-                <h3>{{ category }}</h3>
-                <ul>
-                {{ items | join("\n") }}
-                </ul>
-            {% endfor %}
-            """)
-
-            html_content = html_template.render(data=categorized)
-            send_email("📬 Résumé LinkedIn quotidien", html_content, email)
-            progress.progress(100)
-            st.success("🎉 Analyse terminée et email envoyé !")
+            return f"{len(matched_posts)} posts filtrés avec succès."
 
         except Exception as e:
-            st.error(f"❌ Une erreur est survenue : {e}")
+            print("Erreur :", e)
+            return "❌ Échec du scraping. Vérifie les cookies et ta connexion."
+
+        finally:
+            browser.close()
