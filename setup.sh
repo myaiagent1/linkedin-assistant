@@ -34,3 +34,5 @@ echo "🐍 Installation des navigateurs pour Playwright..."
 playwright install
 
 echo "✅ Setup terminé : navigateurs Playwright installés avec succès !"
+
+npx playwright install chromium
