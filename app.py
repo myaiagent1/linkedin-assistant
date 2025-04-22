@@ -3,12 +3,24 @@ from scrape_linkedin import scrape_linkedin_posts
 from analyze_posts import analyze_posts
 from send_email import send_email_with_summary
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 st.set_page_config(page_title="LinkedIn Assistant", layout="centered")
 st.title("🤖 LinkedIn Assistant")
 st.write("Configurez vos préférences pour recevoir un résumé de posts LinkedIn par mail.")
 
-# === SECTION : CONFIGURATION UTILISATEUR ===
+# === SECTION 1 : TÉLÉVERSEMENT DES COOKIES ===
+st.subheader("🔐 Importer vos cookies LinkedIn")
+uploaded_cookie = st.file_uploader("Téléversez votre fichier linkedin_cookies.json", type=["json"])
+
+if uploaded_cookie is not None:
+    with open("linkedin_cookies.json", "wb") as f:
+        f.write(uploaded_cookie.read())
+    st.success("✅ Cookies LinkedIn enregistrés avec succès.")
+
+# === SECTION 2 : CONFIGURATION UTILISATEUR ===
 st.subheader("🛠️ Configuration")
 
 email = st.text_input("📧 Entrez votre adresse email")
@@ -19,7 +31,6 @@ if st.button("💾 Sauvegarder les préférences"):
     if not email or not keywords_input:
         st.error("Merci de remplir tous les champs.")
     else:
-        # Sauvegarde dans les fichiers txt
         with open("user_config.txt", "w") as f:
             f.write(f"{email},{frequency}\n")
 
@@ -31,12 +42,12 @@ if st.button("💾 Sauvegarder les préférences"):
 
         st.success("✅ Préférences enregistrées.")
 
-# === SECTION : EXÉCUTION AUTOMATISÉE ===
+# === SECTION 3 : EXÉCUTION AUTOMATISÉE ===
 st.subheader("🚀 Lancer le traitement")
 
 if st.button("1️⃣ Scraper les posts LinkedIn"):
     result = scrape_linkedin_posts()
-    st.success("✅ Posts récupérés.")
+    st.success(result)
 
 if st.button("2️⃣ Résumer les posts"):
     summary = analyze_posts()
@@ -44,4 +55,4 @@ if st.button("2️⃣ Résumer les posts"):
 
 if st.button("3️⃣ Envoyer le mail"):
     status = send_email_with_summary()
-    st.success("📬 Mail envoyé avec succès.")
+    st.success(status)
