@@ -4,5 +4,4 @@ python-dotenv
 jinja2
 playwright
 schedule
-playwright
-pyppeteer
+
