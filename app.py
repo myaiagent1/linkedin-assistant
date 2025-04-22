@@ -3,12 +3,33 @@ import subprocess
 import threading
 import time
 import os
+from pathlib import Path
 from scrape_linkedin import get_linkedin_posts
 from analyze_posts import analyze_post, enrich_keywords
 from send_email import send_email
 from jinja2 import Template
 
-# 🎨 Logo LinkedIn en haut de l’interface
+# Installation automatique de Playwright
+def ensure_playwright_browsers():
+    try:
+        # Vérifier le chemin du navigateur Chromium
+        browser_path = Path("/home/appuser/.cache/ms-playwright")
+        
+        if not browser_path.exists() or not list(browser_path.glob("**/headless_shell")):
+            print("Installation des navigateurs Playwright...")
+            subprocess.run(
+                ["python", "-m", "playwright", "install", "chromium"],
+                check=True
+            )
+            print("Installation de Playwright terminée!")
+    except Exception as e:
+        print(f"Erreur lors de l'installation de Playwright: {e}")
+        # On continue malgré l'erreur pour que l'application démarre quand même
+
+# Installer Playwright au démarrage
+ensure_playwright_browsers()
+
+# 🎨 Logo LinkedIn en haut de l'interface
 st.set_page_config(page_title="Assistant LinkedIn IA", page_icon="🔗", layout="centered")
 st.markdown("""
     <div style='text-align: center;'>
@@ -46,7 +67,7 @@ email_default, keywords_default, categories_default, enrich_default = read_user_
 email_input = st.sidebar.text_input("Adresse email", value=email_default)
 keywords_input = st.sidebar.text_input("Mots-clés (séparés par des virgules)", value=keywords_default)
 use_enrichment = st.sidebar.checkbox("🤖 Utiliser l'enrichissement intelligent des mots-clés", value=enrich_default)
-category_options = ["Offre d’emploi", "Mission freelance", "Événement", "Article pertinent", "Autre (inutile)"]
+category_options = ["Offre d'emploi", "Mission freelance", "Événement", "Article pertinent", "Autre (inutile)"]
 selected = st.sidebar.multiselect("Catégories à recevoir", options=category_options, default=categories_default)
 
 if st.sidebar.button("📏 Sauvegarder mes paramètres"):
@@ -102,7 +123,7 @@ if st.button("🚀 Exécuter maintenant", type="primary"):
             progress.progress(40)
 
             categorized = {
-                "Offre d’emploi": [],
+                "Offre d'emploi": [],
                 "Mission freelance": [],
                 "Événement": [],
                 "Article pertinent": [],
