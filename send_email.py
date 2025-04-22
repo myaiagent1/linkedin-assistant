@@ -1,41 +1,65 @@
 import smtplib
-import ssl
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
 
-# 🔐 Charger les infos du fichier .env
+# Charger les variables d’environnement
 load_dotenv()
 
-SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 465
-EMAIL_SENDER = os.getenv("SMTP_EMAIL")
-EMAIL_PASSWORD = os.getenv("SMTP_PASSWORD")  # mot de passe d'application
-EMAIL_NAME = os.getenv("YOUR_EMAIL")         # nom visible dans la boîte
+def get_user_config(file_path="user_config.txt"):
+    if not os.path.exists(file_path):
+        return None, None
+    with open(file_path, "r") as f:
+        line = f.readline().strip()
+        if line:
+            email, frequency = line.split(",")
+            return email.strip(), frequency.strip()
+    return None, None
 
-# ✉️ Fonction pour envoyer un email HTML
-def send_email(subject, html_content, receiver_email):
-    print("📤 Tentative d'envoi de l'email à :", receiver_email)
+def read_summary(file_path="scraped_posts.txt"):
+    if not os.path.exists(file_path):
+        return None
+    with open(file_path, "r", encoding="utf-8") as f:
+        return f.read().strip()
+
+def send_email_with_summary():
+    recipient_email, frequency = get_user_config()
+    if not recipient_email:
+        return "❌ Aucune configuration utilisateur trouvée."
+
+    summary = read_summary()
+    if not summary:
+        return "❌ Aucun contenu à envoyer."
+
+    # Récupérer les infos depuis .env
+    sender_email = os.getenv("SMTP_EMAIL")
+    sender_password = os.getenv("SMTP_PASSWORD")
+
+    subject = "📰 Résumé LinkedIn - " + frequency
+
+    msg = MIMEMultipart()
+    msg["From"] = sender_email
+    msg["To"] = recipient_email
+    msg["Subject"] = subject
+
+    html = f"""
+    <html>
+    <body>
+        <p>Bonjour,</p>
+        <p>Voici votre résumé LinkedIn basé sur vos préférences :</p>
+        <pre style="font-family:Arial;">{summary}</pre>
+        <p>À bientôt,<br>🤖 LinkedIn Assistant</p>
+    </body>
+    </html>
+    """
+
+    msg.attach(MIMEText(html, "html"))
 
     try:
-        message = MIMEMultipart("alternative")
-        message["Subject"] = subject
-        message["From"] = f"{EMAIL_NAME} <{EMAIL_SENDER}>"
-        message["To"] = receiver_email
-
-        # Corps du message
-        part_html = MIMEText(html_content, "html")
-        message.attach(part_html)
-
-        # Connexion sécurisée et envoi
-        context = ssl.create_default_context()
-        with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT, context=context) as server:
-            server.login(EMAIL_SENDER, EMAIL_PASSWORD)
-            server.sendmail(EMAIL_SENDER, receiver_email, message.as_string())
-
-        print("✅ Email envoyé avec succès !")
-
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
+            server.login(sender_email, sender_password)
+            server.sendmail(sender_email, recipient_email, msg.as_string())
+        return f"✅ Email envoyé à {recipient_email}"
     except Exception as e:
-        print(f"❌ Erreur lors de l’envoi de l’email : {e}")
-        raise e  # permet de remonter l'erreur à Streamlit
+        return f"❌ Erreur d'envoi : {e}"
