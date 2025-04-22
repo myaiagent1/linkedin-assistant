@@ -1,4 +1,6 @@
 #!/bin/bash
 
-echo "▶️ Installation des navigateurs Playwright"
-npx playwright install --with-deps
+echo "📦 Installation de Playwright et des navigateurs..."
+
+# Installe Playwright et les navigateurs
+playwright install --with-deps
