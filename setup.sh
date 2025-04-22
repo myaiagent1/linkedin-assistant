@@ -1,38 +1,20 @@
 #!/bin/bash
 
-echo "📦 Mise à jour des paquets..."
-sudo apt-get update -y && sudo apt-get install -y \
-    wget \
-    curl \
-    unzip \
-    fonts-liberation \
-    libnss3 \
-    libnspr4 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libpango-1.0-0 \
-    libcairo2 \
-    libasound2 \
-    libatspi2.0-0 \
-    libwayland-client0 \
-    libxcursor1 \
-    libgtk-3-0 \
-    libpangocairo-1.0-0 \
-    libcairo-gobject2 \
-    libgdk-pixbuf-2.0-0 \
-    libx11-xcb1
+# Afficher les commandes pour le débogage
+set -x
 
-echo "🐍 Installation des navigateurs pour Playwright..."
-playwright install
+# Installation des dépendances requises
+apt-get update
+apt-get install -y wget gnupg
 
-echo "✅ Setup terminé : navigateurs Playwright installés avec succès !"
+# Installer Playwright avec les dépendances et le navigateur
+echo "Installation des navigateurs Playwright..."
+python -m playwright install --with-deps chromium
 
-npx playwright install chromium
+# Vérifier si l'installation a réussi
+echo "Vérification du chemin des navigateurs installés..."
+ls -la /home/appuser/.cache/ms-playwright/
+
+# Corriger les permissions du dossier Playwright
+echo "Mise à jour des permissions..."
+chmod -R 755 /home/appuser/.cache/ms-playwright/
