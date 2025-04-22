@@ -1,8 +1,12 @@
 import openai
 import os
+from dotenv import load_dotenv
 
-# Renseigne ta clé OpenAI ici ou via variable d'environnement
-openai.api_key = os.getenv("OPENAI_API_KEY", "ta_clé_openai_ici")
+# Charger les variables du fichier .env
+load_dotenv()
+
+# Lire la clé API OpenAI
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def read_scraped_posts(file_path="scraped_posts.txt"):
     if not os.path.exists(file_path):
