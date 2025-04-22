@@ -1,6 +1,36 @@
 #!/bin/bash
 
-echo "📦 Installation de Playwright et des navigateurs..."
+echo "📦 Mise à jour des paquets..."
+sudo apt-get update -y && sudo apt-get install -y \
+    wget \
+    curl \
+    unzip \
+    fonts-liberation \
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libpango-1.0-0 \
+    libcairo2 \
+    libasound2 \
+    libatspi2.0-0 \
+    libwayland-client0 \
+    libxcursor1 \
+    libgtk-3-0 \
+    libpangocairo-1.0-0 \
+    libcairo-gobject2 \
+    libgdk-pixbuf-2.0-0 \
+    libx11-xcb1
 
-# Installe Playwright et les navigateurs
-playwright install --with-deps
+echo "🐍 Installation des navigateurs pour Playwright..."
+playwright install
+
+echo "✅ Setup terminé : navigateurs Playwright installés avec succès !"
