@@ -2,10 +2,18 @@ from playwright.sync_api import sync_playwright
 import json
 import time
 import os
+from dotenv import load_dotenv
+
+# Charger les variables d'environnement depuis .env
+load_dotenv()
+
+# Lecture des identifiants LinkedIn (optionnel, pour une future automatisation)
+linkedin_email = os.getenv("LINKEDIN_EMAIL")
+linkedin_password = os.getenv("LINKEDIN_PASSWORD")
 
 def load_cookies(context, cookies_file="linkedin_cookies.json"):
     if not os.path.exists(cookies_file):
-        raise FileNotFoundError("⚠️ Fichier de cookies non trouvé.")
+        raise FileNotFoundError("⚠️ Fichier de cookies non trouvé. Merci de te connecter et de sauvegarder tes cookies.")
     with open(cookies_file, "r") as f:
         cookies = json.load(f)
     context.add_cookies(cookies)
@@ -31,16 +39,16 @@ def scrape_linkedin_posts():
             # Charger les cookies LinkedIn
             load_cookies(context)
 
-            # Aller sur la page d'accueil LinkedIn
+            # Aller sur le feed LinkedIn
             page.goto("https://www.linkedin.com/feed/", timeout=60000)
             time.sleep(5)
 
-            # Faire défiler la page pour charger du contenu
+            # Faire défiler la page pour charger plus de contenu
             for _ in range(3):
                 page.mouse.wheel(0, 1000)
                 time.sleep(2)
 
-            # Extraire tous les posts visibles
+            # Localiser tous les posts
             posts_elements = page.locator("div.feed-shared-update-v2")
             count = posts_elements.count()
             print(f"{count} posts détectés.")
@@ -55,18 +63,17 @@ def scrape_linkedin_posts():
                 if any(keyword in content.lower() for keyword in keywords):
                     try:
                         post_url = post.locator("a").first.get_attribute("href")
-                        summary = content[:300]  # Simple résumé
+                        summary = content[:300]  # Simple résumé brut
                         matched_posts.append(f"{summary}\n➡️ {post_url}")
                     except:
                         continue
 
             save_posts(matched_posts)
-
-            return f"{len(matched_posts)} posts filtrés avec succès."
+            return f"✅ {len(matched_posts)} posts filtrés avec succès."
 
         except Exception as e:
             print("Erreur :", e)
-            return "❌ Échec du scraping. Vérifie les cookies et ta connexion."
+            return f"❌ Échec du scraping : {e}"
 
         finally:
             browser.close()
