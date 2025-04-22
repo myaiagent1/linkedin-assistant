@@ -1,20 +1,19 @@
 #!/bin/bash
 
-# Afficher les commandes pour le débogage
+# Débogage - affiche les commandes exécutées
 set -x
 
-# Installation des dépendances requises
+echo "Installation des dépendances système..."
 apt-get update
-apt-get install -y wget gnupg
+apt-get install -y wget gnupg libglib2.0-0 libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2 libpango-1.0-0 libcairo2 libfontconfig1
 
-# Installer Playwright avec les dépendances et le navigateur
 echo "Installation des navigateurs Playwright..."
 python -m playwright install --with-deps chromium
 
-# Vérifier si l'installation a réussi
-echo "Vérification du chemin des navigateurs installés..."
-ls -la /home/appuser/.cache/ms-playwright/
+echo "Vérification de l'installation..."
+ls -la /home/appuser/.cache/ms-playwright/ || echo "Dossier ms-playwright non trouvé"
 
-# Corriger les permissions du dossier Playwright
-echo "Mise à jour des permissions..."
-chmod -R 755 /home/appuser/.cache/ms-playwright/
+echo "Configuration des permissions..."
+chmod -R 755 /home/appuser/.cache/ || echo "Impossible de modifier les permissions"
+
+echo "Setup terminé"
