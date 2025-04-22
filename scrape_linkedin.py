@@ -77,3 +77,8 @@ def scrape_linkedin_posts():
 
         finally:
             browser.close()
+            try:
+    browser = p.chromium.launch(headless=True)
+except Exception as e:
+    return "❌ Playwright ne peut pas lancer Chromium ici. Essaie depuis ton ordinateur local."
+
